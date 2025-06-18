@@ -57,11 +57,7 @@ class PostResource extends Resource
                             ->schema([
                                 Forms\Components\Card::make()
                                     ->schema([
-                                        Forms\Components\TextInput::make('slide_title')
-                                            ->label('Slide Title (Optional)')
-                                            ->placeholder('Give this slide a title')
-                                            ->maxLength(255)
-                                            ->columnSpanFull(),
+                                       
 
                                         Forms\Components\Grid::make(3)
                                             ->schema([
