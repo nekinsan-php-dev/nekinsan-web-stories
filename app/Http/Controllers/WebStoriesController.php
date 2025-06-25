@@ -10,7 +10,10 @@ class WebStoriesController extends Controller
 {
     public function getPosts()
     {
-        $posts = Post::where('is_active', 1)->latest()->paginate(10);
+        $posts = Post::with('category')
+            ->where('is_active', true)
+            ->latest()
+            ->paginate(10);
 
         return WebStoriesResource::collection($posts);
     }
