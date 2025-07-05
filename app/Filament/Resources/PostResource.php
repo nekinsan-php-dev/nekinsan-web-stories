@@ -278,9 +278,14 @@ class PostResource extends Resource
                                                                 ])
                                                                 ->default('center'),
 
-                                                            Forms\Components\Placeholder::make('image_upload')
-                                                                ->label('Image')
-                                                                ->content('Upload below'),
+                                                            Forms\Components\Toggle::make('cta_button_show')
+                                                                ->label('CTA Button')
+                                                                ->default(false)
+                                                                ->live()
+                                                                ->onIcon('heroicon-o-cursor-arrow-rays')
+                                                                ->offIcon('heroicon-o-cursor-arrow-rays')
+                                                                ->onColor('warning')
+                                                                ->inline(false),
                                                         ]),
 
                                                     Forms\Components\RichEditor::make('content')
@@ -301,6 +306,15 @@ class PostResource extends Resource
                                                         ->columnSpanFull()
                                                         ->visible(fn (Forms\Get $get) => $get('text_active')),
 
+                                                    Forms\Components\TextInput::make('cta_link')
+                                                        ->label('Call-to-Action Link')
+                                                        ->url()
+                                                        ->placeholder('https://example.com/action')
+                                                        ->helperText('Enter a valid URL where users should be redirected when they click the CTA button')
+                                                        ->prefixIcon('heroicon-o-link')
+                                                        ->visible(fn (Forms\Get $get) => $get('cta_button_show'))
+                                                        ->columnSpanFull(),
+
                                                     SpatieMediaLibraryFileUpload::make('slide_image')
                                                         ->label('Slide Image')
                                                         ->collection('slide_image')
@@ -317,6 +331,41 @@ class PostResource extends Resource
                                                         ->maxSize(5120)
                                                         ->maxFiles(1)
                                                         ->helperText('Upload one image for this slide')
+                                                        ->columnSpanFull(),
+
+                                                    // CTA Preview Card
+                                                    Forms\Components\Card::make()
+                                                        ->schema([
+                                                            Forms\Components\Placeholder::make('cta_preview')
+                                                                ->label('CTA Button Preview')
+                                                                ->content(function (Forms\Get $get) {
+                                                                    if (!$get('cta_button_show')) {
+                                                                        return new \Illuminate\Support\HtmlString(
+                                                                            "<div class='text-gray-500 text-sm'>Enable CTA Button to see preview</div>"
+                                                                        );
+                                                                    }
+
+                                                                    $link = $get('cta_link') ?: 'https://example.com';
+                                                                    $isValidUrl = filter_var($link, FILTER_VALIDATE_URL);
+
+                                                                    $buttonClass = $isValidUrl ?
+                                                                        'bg-blue-600 hover:bg-blue-700 text-white' :
+                                                                        'bg-gray-400 text-gray-700 cursor-not-allowed';
+
+                                                                    return new \Illuminate\Support\HtmlString("
+                                                                        <div class='bg-gray-50 p-4 rounded-lg border border-gray-200'>
+                                                                            <div class='text-sm text-gray-600 mb-2'>Button Preview:</div>
+                                                                            <button class='{$buttonClass} px-6 py-3 rounded-lg font-medium transition-colors duration-200'>
+                                                                                Call to Action
+                                                                            </button>
+                                                                            <div class='text-xs text-gray-500 mt-2'>
+                                                                                Link: " . ($isValidUrl ? $link : 'Invalid URL') . "
+                                                                            </div>
+                                                                        </div>
+                                                                    ");
+                                                                })
+                                                        ])
+                                                        ->visible(fn (Forms\Get $get) => $get('cta_button_show'))
                                                         ->columnSpanFull(),
                                                 ])
                                         ])
@@ -381,6 +430,14 @@ class PostResource extends Resource
                     ->color('success')
                     ->icon('heroicon-o-squares-plus'),
 
+                Tables\Columns\TextColumn::make('cta_slides_count')
+                    ->label('CTA Slides')
+                    ->getStateUsing(fn (Post $record): int => $record->slides()->where('cta_button_show', true)->count())
+                    ->badge()
+                    ->color('warning')
+                    ->icon('heroicon-o-cursor-arrow-rays')
+                    ->tooltip('Number of slides with CTA buttons'),
+
                 Tables\Columns\IconColumn::make('has_complete_seo')
                     ->label('SEO')
                     ->icon(fn (string $state): string => match ($state) {
@@ -438,6 +495,17 @@ class PostResource extends Resource
                     ->queries(
                         true: fn ($query) => $query->whereNotNull('meta_title')->whereNotNull('meta_description'),
                         false: fn ($query) => $query->whereNull('meta_title')->orWhereNull('meta_description'),
+                    )
+                    ->native(false),
+
+                Tables\Filters\TernaryFilter::make('has_cta_slides')
+                    ->label('CTA Status')
+                    ->placeholder('All Stories')
+                    ->trueLabel('Has CTA Slides')
+                    ->falseLabel('No CTA Slides')
+                    ->queries(
+                        true: fn ($query) => $query->whereHas('slides', fn ($q) => $q->where('cta_button_show', true)),
+                        false: fn ($query) => $query->whereDoesntHave('slides', fn ($q) => $q->where('cta_button_show', true)),
                     )
                     ->native(false),
             ])

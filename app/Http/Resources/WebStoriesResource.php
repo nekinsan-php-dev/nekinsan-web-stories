@@ -55,6 +55,8 @@ class WebStoriesResource extends JsonResource
                 'zoom_effect' => (bool) $slide->zoom_effect,
                 'text_position' => $slide->text_position,
                 'content' => $slide->content,
+                'cta_link' => $slide->cta_link,
+                'cta_button_show' => (bool) $slide->cta_button_show,
                 'slide_image' => $slideImage ? $slideImage->getUrl('story') : null,
                 'slide_image_thumb' => $slideImage ? $slideImage->getUrl('thumb') : null,
                 'slide_image_original' => $slideImage ? $slideImage->getUrl() : null,
@@ -64,7 +66,7 @@ class WebStoriesResource extends JsonResource
         })->toArray();
     }
 
-    /**
+/**
      * Get additional data that should be wrapped in the resource response.
      *
      * @param  \Illuminate\Http\Request  $request
