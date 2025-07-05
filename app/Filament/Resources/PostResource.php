@@ -47,16 +47,17 @@ class PostResource extends Resource
                                                 ->maxLength(255)
                                                 ->placeholder('e.g., "Amazing Journey Through Time"')
                                                 ->live(onBlur: true)
-                                                ->afterStateUpdated(function (string $operation, $state, Forms\Set $set) {
+                                                ->afterStateUpdated(function (string $operation, $state, Forms\Set $set, Forms\Get $get) {
                                                     if ($operation !== 'create') {
                                                         return;
                                                     }
                                                     $set('slug', Str::slug($state));
                                                     // Auto-fill meta_title if empty
-                                                    if (empty($set('meta_title'))) {
+                                                    if (empty($get('meta_title'))) {
                                                         $set('meta_title', $state);
                                                     }
                                                 })
+
                                                 ->columnSpan(1),
 
                                             Forms\Components\Select::make('category_id')
