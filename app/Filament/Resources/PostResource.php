@@ -39,7 +39,7 @@ class PostResource extends Resource
                         ->schema([
                             Forms\Components\Section::make()
                                 ->schema([
-                                    Forms\Components\Grid::make(3)
+                                    Forms\Components\Grid::make(2)
                                         ->schema([
                                             Forms\Components\TextInput::make('title')
                                                 ->label('Story Title')
@@ -47,25 +47,17 @@ class PostResource extends Resource
                                                 ->maxLength(255)
                                                 ->placeholder('e.g., "Amazing Journey Through Time"')
                                                 ->live(onBlur: true)
-                                                ->afterStateUpdated(function (string $operation, $state, Forms\Set $set, Forms\Get $get) {
+                                                ->afterStateUpdated(function (string $operation, $state, Forms\Set $set) {
                                                     if ($operation !== 'create') {
                                                         return;
                                                     }
-
-                                                    $slug = Str::slug($state);
-                                                    $set('slug', $slug);
-
-                                                    // Auto-populate meta_title if empty
-                                                    if (empty($get('meta_title'))) {
+                                                    $set('slug', Str::slug($state));
+                                                    // Auto-fill meta_title if empty
+                                                    if (empty($set('meta_title'))) {
                                                         $set('meta_title', $state);
                                                     }
-
-                                                    // Auto-generate basic meta description
-                                                    if (empty($get('meta_description')) && !empty($state)) {
-                                                        $set('meta_description', 'Discover ' . $state . ' - An engaging web story that will captivate your audience.');
-                                                    }
                                                 })
-                                                ->columnSpan(2),
+                                                ->columnSpan(1),
 
                                             Forms\Components\Select::make('category_id')
                                                 ->label('Category')
@@ -96,75 +88,118 @@ class PostResource extends Resource
                                                 ->columnSpan(1),
                                         ]),
 
-                                    Forms\Components\Grid::make(2)
-                                        ->schema([
-                                            Forms\Components\TextInput::make('slug')
-                                                ->label('URL Slug')
-                                                ->required()
-                                                ->maxLength(255)
-                                                ->unique(Post::class, 'slug', ignoreRecord: true)
-                                                ->prefix('yourdomain.com/stories/')
-                                                ->suffixIcon('heroicon-o-link')
-                                                ->rules(['alpha_dash'])
-                                                ->live(onBlur: true)
-                                                ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                                    $set('slug', Str::slug($state));
-                                                }),
+                                    Forms\Components\TextInput::make('slug')
+                                        ->label('URL Slug')
+                                        ->required()
+                                        ->maxLength(255)
+                                        ->unique(Post::class, 'slug', ignoreRecord: true)
+                                        ->prefix('yourdomain.com/stories/')
+                                        ->suffixIcon('heroicon-o-link')
+                                        ->rules(['alpha_dash'])
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                            $set('slug', Str::slug($state));
+                                        }),
 
-                                            Forms\Components\Toggle::make('is_active')
-                                                ->label('Publish Story')
-                                                ->default(true)
-                                                ->onIcon('heroicon-o-eye')
-                                                ->offIcon('heroicon-o-eye-slash')
-                                                ->onColor('success')
-                                                ->offColor('gray')
-                                                ->inline(false),
-                                        ]),
+                                    Forms\Components\Toggle::make('is_active')
+                                        ->label('Publish Story')
+                                        ->default(true)
+                                        ->onIcon('heroicon-o-eye')
+                                        ->offIcon('heroicon-o-eye-slash')
+                                        ->onColor('success')
+                                        ->offColor('gray')
+                                        ->inline(false),
                                 ])
                         ]),
 
-                    Forms\Components\Wizard\Step::make('SEO Optimization')
+                    Forms\Components\Wizard\Step::make('SEO Settings')
                         ->icon('heroicon-o-magnifying-glass')
                         ->description('Optimize for search engines')
                         ->schema([
                             Forms\Components\Section::make('Search Engine Optimization')
-                                ->description('Help people find your story online')
+                                ->description('Help your story rank better in search results')
                                 ->schema([
                                     Forms\Components\TextInput::make('meta_title')
                                         ->label('Meta Title')
                                         ->maxLength(60)
-                                        ->placeholder('Enter SEO-friendly title (50-60 characters)')
-                                        ->suffixIcon('heroicon-o-tag')
+                                        ->placeholder('Leave blank to use story title')
+                                        ->helperText('Recommended: 50-60 characters. This appears as the clickable headline in search results.')
+                                        ->suffixAction(
+                                            Forms\Components\Actions\Action::make('copyFromTitle')
+                                                ->icon('heroicon-o-document-duplicate')
+                                                ->action(function (Forms\Set $set, Forms\Get $get) {
+                                                    $set('meta_title', $get('title'));
+                                                })
+                                                ->tooltip('Copy from story title')
+                                        )
                                         ->live()
                                         ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                            // Auto-trigger SEO score update
-                                            $set('seo_score', time());
-                                        })
-                                        ->columnSpanFull(),
+                                            $set('meta_title_length', strlen($state ?? ''));
+                                        }),
+
+                                    Forms\Components\Placeholder::make('meta_title_length')
+                                        ->label('Meta Title Length')
+                                        ->content(function (Forms\Get $get) {
+                                            $length = strlen($get('meta_title') ?? '');
+                                            $color = $length > 60 ? 'danger' : ($length > 50 ? 'warning' : 'success');
+                                            return new \Illuminate\Support\HtmlString(
+                                                "<span class='text-{$color}-600 font-medium'>{$length} characters</span>"
+                                            );
+                                        }),
 
                                     Forms\Components\Textarea::make('meta_description')
                                         ->label('Meta Description')
                                         ->maxLength(160)
                                         ->rows(3)
-                                        ->placeholder('Write a compelling description (120-160 characters)')
+                                        ->placeholder('Write a compelling description that summarizes your story...')
+                                        ->helperText('Recommended: 150-160 characters. This appears below the title in search results.')
                                         ->live()
                                         ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                            $set('seo_score', time());
-                                        })
-                                        ->columnSpanFull(),
+                                            $set('meta_description_length', strlen($state ?? ''));
+                                        }),
+
+                                    Forms\Components\Placeholder::make('meta_description_length')
+                                        ->label('Meta Description Length')
+                                        ->content(function (Forms\Get $get) {
+                                            $length = strlen($get('meta_description') ?? '');
+                                            $color = $length > 160 ? 'danger' : ($length > 150 ? 'warning' : 'success');
+                                            return new \Illuminate\Support\HtmlString(
+                                                "<span class='text-{$color}-600 font-medium'>{$length} characters</span>"
+                                            );
+                                        }),
 
                                     Forms\Components\TagsInput::make('meta_keywords')
-                                        ->label('Keywords')
-                                        ->placeholder('Add relevant keywords (press Enter after each)')
-                                        ->suggestions([
-                                            'web story', 'digital story', 'interactive content', 'visual story',
-                                            'storytelling', 'multimedia', 'engaging content', 'narrative',
-                                            'creative story', 'immersive experience'
+                                        ->label('Meta Keywords')
+                                        ->placeholder('Add keywords separated by commas')
+                                        ->helperText('Add relevant keywords that describe your story content. Keep it natural and relevant.')
+                                        ->separator(',')
+                                        ->splitKeys(['Tab', ','])
+                                        ->columnSpanFull(),
+
+                                    Forms\Components\Card::make()
+                                        ->schema([
+                                            Forms\Components\Placeholder::make('seo_preview')
+                                                ->label('Search Engine Preview')
+                                                ->content(function (Forms\Get $get) {
+                                                    $title = $get('meta_title') ?: $get('title') ?: 'Your Story Title';
+                                                    $description = $get('meta_description') ?: 'Your story description will appear here...';
+                                                    $slug = $get('slug') ?: 'your-story-slug';
+
+                                                    return new \Illuminate\Support\HtmlString("
+                                                        <div class='bg-white p-4 rounded-lg border border-gray-200'>
+                                                            <div class='text-blue-600 text-lg font-medium hover:underline cursor-pointer'>
+                                                                {$title}
+                                                            </div>
+                                                            <div class='text-green-700 text-sm mt-1'>
+                                                                yourdomain.com/stories/{$slug}
+                                                            </div>
+                                                            <div class='text-gray-600 text-sm mt-2'>
+                                                                {$description}
+                                                            </div>
+                                                        </div>
+                                                    ");
+                                                })
                                         ])
-                                        ->live()
-                                        ->afterStateUpdated(function ($state, Forms\Set $set) {
-                                            $set('seo_score', time());
-                                        })
                                         ->columnSpanFull(),
                                 ])
                         ]),
@@ -189,6 +224,7 @@ class PostResource extends Resource
                                         ->conversion('story')
                                         ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                                         ->maxSize(5120) // 5MB
+                                        ->maxFiles(1)
                                         ->helperText('This image will be used for social media sharing and as the main visual for your story')
                                         ->columnSpanFull(),
                                 ])
@@ -201,18 +237,17 @@ class PostResource extends Resource
                             Forms\Components\Section::make('Story Slides')
                                 ->description('Create engaging slides that tell your story')
                                 ->schema([
-                                    Forms\Components\Repeater::make('content.slides')
+                                    Forms\Components\Repeater::make('slides')
                                         ->label('')
+                                        ->relationship('slides')
                                         ->schema([
                                             Forms\Components\Card::make()
                                                 ->schema([
-                                                    Forms\Components\Grid::make(1)
-                                                        ->schema([
-                                                            Forms\Components\TextInput::make('slide_title')
-                                                                ->label('Slide Title (Optional)')
-                                                                ->maxLength(100)
-                                                                ->placeholder('e.g., "Introduction", "The Journey Begins"'),
-                                                        ]),
+                                                    Forms\Components\TextInput::make('title')
+                                                        ->label('Slide Title (Optional)')
+                                                        ->maxLength(255)
+                                                        ->placeholder('e.g., "Introduction", "The Journey Begins"')
+                                                        ->columnSpanFull(),
 
                                                     Forms\Components\Grid::make(4)
                                                         ->schema([
@@ -225,19 +260,9 @@ class PostResource extends Resource
                                                                 ->onColor('success')
                                                                 ->inline(false),
 
-                                                            Forms\Components\Toggle::make('image_active')
-                                                                ->label('Image Content')
-                                                                ->default(true)
-                                                                ->live()
-                                                                ->onIcon('heroicon-o-photo')
-                                                                ->offIcon('heroicon-o-photo')
-                                                                ->onColor('success')
-                                                                ->inline(false),
-
                                                             Forms\Components\Toggle::make('zoom_effect')
                                                                 ->label('Zoom Animation')
                                                                 ->default(false)
-                                                                ->visible(fn (Forms\Get $get) => $get('image_active'))
                                                                 ->onIcon('heroicon-o-magnifying-glass-plus')
                                                                 ->offIcon('heroicon-o-magnifying-glass-plus')
                                                                 ->onColor('primary')
@@ -251,8 +276,11 @@ class PostResource extends Resource
                                                                     'right' => 'Right',
                                                                     'bottom' => 'Bottom',
                                                                 ])
-                                                                ->default('center')
-                                                                ->visible(fn (Forms\Get $get) => $get('text_active') && $get('image_active')),
+                                                                ->default('center'),
+
+                                                            Forms\Components\Placeholder::make('image_upload')
+                                                                ->label('Image')
+                                                                ->content('Upload below'),
                                                         ]),
 
                                                     Forms\Components\RichEditor::make('content')
@@ -273,9 +301,9 @@ class PostResource extends Resource
                                                         ->columnSpanFull()
                                                         ->visible(fn (Forms\Get $get) => $get('text_active')),
 
-                                                    SpatieMediaLibraryFileUpload::make('slide_images')
-                                                        ->label('Slide Images')
-                                                        ->collection('slides')
+                                                    SpatieMediaLibraryFileUpload::make('slide_image')
+                                                        ->label('Slide Image')
+                                                        ->collection('slide_image')
                                                         ->image()
                                                         ->imageEditor()
                                                         ->imageEditorAspectRatios([
@@ -287,14 +315,15 @@ class PostResource extends Resource
                                                         ->conversion('story')
                                                         ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                                                         ->maxSize(5120)
-                                                        ->columnSpanFull()
-                                                        ->visible(fn (Forms\Get $get) => $get('image_active')),
+                                                        ->maxFiles(1)
+                                                        ->helperText('Upload one image for this slide')
+                                                        ->columnSpanFull(),
                                                 ])
                                         ])
                                         ->itemLabel(fn (array $state): ?string =>
-                                        !empty($state['slide_title'])
-                                            ? $state['slide_title']
-                                            : 'Slide #' . (array_search($state, request()->input('data.content.slides', [])) + 1)
+                                        !empty($state['title'])
+                                            ? $state['title']
+                                            : 'Slide #' . (array_search($state, request()->input('data.slides', [])) + 1)
                                         )
                                         ->addActionLabel('Add New Slide')
                                         ->reorderableWithButtons()
@@ -336,10 +365,7 @@ class PostResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->limit(40)
-                    ->weight('medium')
-                    ->description(fn (Post $record): string =>
-                    $record->meta_title ? 'SEO: ' . Str::limit($record->meta_title, 30) : 'No SEO title'
-                    ),
+                    ->weight('medium'),
 
                 Tables\Columns\TextColumn::make('category.name')
                     ->label('Category')
@@ -350,58 +376,29 @@ class PostResource extends Resource
 
                 Tables\Columns\TextColumn::make('slides_count')
                     ->label('Slides')
-                    ->state(fn (Post $record) => $record->slides_count)
+                    ->counts('slides')
                     ->badge()
                     ->color('success')
                     ->icon('heroicon-o-squares-plus'),
 
-                Tables\Columns\IconColumn::make('seo_status')
+                Tables\Columns\IconColumn::make('has_complete_seo')
                     ->label('SEO')
-                    ->state(function (Post $record): string {
-                        $hasTitle = !empty($record->meta_title);
-                        $hasDescription = !empty($record->meta_description);
-                        $hasKeywords = !empty($record->meta_keywords);
-
-                        if ($hasTitle && $hasDescription && $hasKeywords) {
-                            return 'complete';
-                        } elseif ($hasTitle || $hasDescription) {
-                            return 'partial';
-                        }
-                        return 'none';
-                    })
                     ->icon(fn (string $state): string => match ($state) {
-                        'complete' => 'heroicon-o-check-circle',
-                        'partial' => 'heroicon-o-exclamation-triangle',
-                        'none' => 'heroicon-o-x-circle',
+                        '1' => 'heroicon-o-check-circle',
+                        '0' => 'heroicon-o-x-circle',
+                        default => 'heroicon-o-minus-circle',
                     })
                     ->color(fn (string $state): string => match ($state) {
-                        'complete' => 'success',
-                        'partial' => 'warning',
-                        'none' => 'danger',
+                        '1' => 'success',
+                        '0' => 'danger',
+                        default => 'warning',
                     })
-                    ->tooltip(fn (string $state): string => match ($state) {
-                        'complete' => 'SEO fully optimized',
-                        'partial' => 'SEO partially optimized',
-                        'none' => 'SEO not optimized',
-                    }),
-
-                Tables\Columns\TextColumn::make('meta_description')
-                    ->label('Meta Description')
-                    ->limit(50)
-                    ->placeholder('No meta description')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('meta_keywords')
-                    ->label('Keywords')
-                    ->state(fn (Post $record) =>
-                    is_array($record->meta_keywords)
-                        ? implode(', ', array_slice($record->meta_keywords, 0, 3)) . (count($record->meta_keywords) > 3 ? '...' : '')
-                        : ($record->meta_keywords ?? 'No keywords')
+                    ->tooltip(fn (Post $record): string =>
+                    $record->has_complete_seo
+                        ? 'SEO Complete'
+                        : 'Missing SEO data'
                     )
-                    ->placeholder('No keywords')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->sortable(),
 
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Status')
@@ -433,50 +430,20 @@ class PostResource extends Resource
                     ->falseLabel('Draft Stories')
                     ->native(false),
 
-                Tables\Filters\SelectFilter::make('seo_status')
+                Tables\Filters\TernaryFilter::make('has_complete_seo')
                     ->label('SEO Status')
-                    ->options([
-                        'complete' => 'Fully Optimized',
-                        'partial' => 'Partially Optimized',
-                        'none' => 'Not Optimized',
-                    ])
-                    ->query(function ($query, array $data) {
-                        if (empty($data['value'])) {
-                            return $query;
-                        }
-
-                        return match ($data['value']) {
-                            'complete' => $query->whereNotNull('meta_title')
-                                ->whereNotNull('meta_description')
-                                ->whereNotNull('meta_keywords'),
-                            'partial' => $query->where(function ($q) {
-                                $q->whereNotNull('meta_title')
-                                    ->orWhereNotNull('meta_description');
-                            })->where(function ($q) {
-                                $q->whereNull('meta_title')
-                                    ->orWhereNull('meta_description')
-                                    ->orWhereNull('meta_keywords');
-                            }),
-                            'none' => $query->whereNull('meta_title')
-                                ->whereNull('meta_description')
-                                ->whereNull('meta_keywords'),
-                        };
-                    }),
+                    ->placeholder('All Stories')
+                    ->trueLabel('SEO Complete')
+                    ->falseLabel('SEO Incomplete')
+                    ->queries(
+                        true: fn ($query) => $query->whereNotNull('meta_title')->whereNotNull('meta_description'),
+                        false: fn ($query) => $query->whereNull('meta_title')->orWhereNull('meta_description'),
+                    )
+                    ->native(false),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
-                Tables\Actions\Action::make('optimize_seo')
-                    ->label('Optimize SEO')
-                    ->icon('heroicon-o-magnifying-glass')
-                    ->color('warning')
-                    ->visible(fn (Post $record) =>
-                        empty($record->meta_title) ||
-                        empty($record->meta_description) ||
-                        empty($record->meta_keywords)
-                    )
-                    ->url(fn (Post $record) => static::getUrl('edit', ['record' => $record]))
-                    ->tooltip('Complete SEO optimization'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -501,36 +468,6 @@ class PostResource extends Resource
                         })
                         ->color('warning')
                         ->requiresConfirmation(),
-                    Tables\Actions\BulkAction::make('auto_seo')
-                        ->label('Auto-Generate SEO')
-                        ->icon('heroicon-o-sparkles')
-                        ->action(function ($records) {
-                            foreach ($records as $record) {
-                                $updates = [];
-
-                                // Auto-generate meta_title if missing
-                                if (empty($record->meta_title)) {
-                                    $updates['meta_title'] = Str::limit($record->title, 60);
-                                }
-
-                                // Auto-generate meta_description if missing
-                                if (empty($record->meta_description)) {
-                                    // Extract text from first slide if available
-                                    $slides = $record->content['slides'] ?? [];
-                                    $firstSlideContent = $slides[0]['content'] ?? '';
-                                    $description = strip_tags($firstSlideContent);
-                                    $updates['meta_description'] = Str::limit($description, 160);
-                                }
-
-                                if (!empty($updates)) {
-                                    $record->update($updates);
-                                }
-                            }
-                        })
-                        ->color('info')
-                        ->requiresConfirmation()
-                        ->modalHeading('Auto-Generate SEO Data')
-                        ->modalDescription('This will automatically generate meta titles and descriptions for selected stories that don\'t have them. Existing SEO data will not be overwritten.'),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

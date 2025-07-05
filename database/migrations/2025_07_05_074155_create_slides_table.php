@@ -11,10 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('posts', function (Blueprint $table) {
+        Schema::create('slides', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('post_id')->constrained();
             $table->string('title');
-            $table->boolean('is_active');
+            $table->boolean('text_active')->default(false);
+            $table->boolean('zoom_effect')->default(false);
+            $table->string('text_position')->default('center');
+            $table->longText('content');
             $table->timestamps();
         });
     }
@@ -24,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('posts');
+        Schema::dropIfExists('slides');
     }
 };

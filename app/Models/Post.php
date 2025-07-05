@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -18,7 +17,6 @@ class Post extends Model implements HasMedia
         'category_id',
         'title',
         'slug',
-        'content',
         'meta_title',
         'meta_description',
         'meta_keywords',
@@ -26,13 +24,7 @@ class Post extends Model implements HasMedia
     ];
 
     protected $casts = [
-        'content' => 'array',
-        'meta_keywords' => 'array', // Add this line to cast meta_keywords as array
         'is_active' => 'boolean',
-    ];
-
-    protected $attributes = [
-        'content' => '{}',
     ];
 
     protected static function boot()
@@ -52,6 +44,11 @@ class Post extends Model implements HasMedia
                     $counter++;
                 }
             }
+
+            // Auto-generate meta_title if not provided
+            if (empty($post->meta_title)) {
+                $post->meta_title = $post->title;
+            }
         });
 
         static::updating(function ($post) {
@@ -69,31 +66,17 @@ class Post extends Model implements HasMedia
                     $counter++;
                 }
             }
-        });
-    }
 
-    // Accessor for slides (from content JSON with images)
-    protected function slides(): Attribute
-    {
-        return Attribute::make(
-            get: function () {
-                $slides = $this->content['slides'] ?? [];
-                $slideImages = $this->getMedia('slides');
-
-                // Attach slide images to their respective slides
-                foreach ($slides as $index => $slide) {
-                    if (isset($slideImages[$index])) {
-                        $slides[$index]['slide_image'] = $slideImages[$index]->getUrl('story');
-                        $slides[$index]['slide_image_thumb'] = $slideImages[$index]->getUrl('thumb');
-                    } else {
-                        $slides[$index]['slide_image'] = null;
-                        $slides[$index]['slide_image_thumb'] = null;
-                    }
-                }
-
-                return $slides;
+            // Auto-update meta_title if it matches the old title and title is changed
+            if ($post->isDirty('title') && $post->getOriginal('title') === $post->getOriginal('meta_title')) {
+                $post->meta_title = $post->title;
             }
-        );
+        });
+
+        // Clean up slides when post is deleted
+        static::deleting(function ($post) {
+            $post->slides()->delete();
+        });
     }
 
     // Scope for active stories
@@ -111,19 +94,13 @@ class Post extends Model implements HasMedia
     // Get slides count
     public function getSlidesCountAttribute()
     {
-        return count($this->slides);
+        return $this->slides()->count();
     }
 
     // Check if story has zoom effects
     public function getHasZoomEffectsAttribute()
     {
-        $slides = $this->slides;
-        foreach ($slides as $slide) {
-            if (isset($slide['zoom_effect']) && $slide['zoom_effect']) {
-                return true;
-            }
-        }
-        return false;
+        return $this->slides()->where('zoom_effect', true)->exists();
     }
 
     // Get featured image URL
@@ -133,21 +110,39 @@ class Post extends Model implements HasMedia
         return $media ? $media->getUrl('story') : null;
     }
 
-    // Get content with embedded slide images
-    public function getContentWithImagesAttribute()
+    // Get featured image thumbnail
+    public function getFeaturedImageThumbAttribute()
     {
-        $content = $this->content;
-        if (isset($content['slides'])) {
-            $content['slides'] = $this->slides; // This will use the accessor that includes images
-        }
-        return $content;
+        $media = $this->getFirstMedia('cover');
+        return $media ? $media->getUrl('thumb') : null;
+    }
+
+    // Check if post has featured image
+    public function getHasFeaturedImageAttribute()
+    {
+        return $this->getFirstMedia('cover') !== null;
+    }
+
+    // SEO helper methods
+    public function getEffectiveMetaTitleAttribute()
+    {
+        return $this->meta_title ?: $this->title;
+    }
+
+    public function getMetaKeywordsArrayAttribute()
+    {
+        return $this->meta_keywords ? explode(',', $this->meta_keywords) : [];
+    }
+
+    public function getHasCompleteSeoAttribute()
+    {
+        return !empty($this->meta_title) && !empty($this->meta_description);
     }
 
     // Media library conversions
     public function registerMediaConversions(Media $media = null): void
     {
         $this->addMediaConversion('thumb')
-            ->performOnCollections('slides', 'cover')
             ->width(300)
             ->height(300)
             ->sharpen(10)
@@ -155,7 +150,6 @@ class Post extends Model implements HasMedia
             ->nonQueued();
 
         $this->addMediaConversion('story')
-            ->performOnCollections('slides', 'cover')
             ->width(800)
             ->height(600)
             ->sharpen(10)
@@ -167,5 +161,10 @@ class Post extends Model implements HasMedia
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function slides()
+    {
+        return $this->hasMany(Slide::class)->orderBy('id');
     }
 }
