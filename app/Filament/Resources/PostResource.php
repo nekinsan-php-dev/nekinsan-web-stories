@@ -122,9 +122,9 @@ class PostResource extends Resource
                                 ->schema([
                                     Forms\Components\TextInput::make('meta_title')
                                         ->label('Meta Title')
-                                        ->maxLength(60)
+                                        ->maxLength(250)
                                         ->placeholder('Leave blank to use story title')
-                                        ->helperText('Recommended: 50-60 characters. This appears as the clickable headline in search results.')
+                                        ->helperText('Recommended: 50-250 characters. This appears as the clickable headline in search results.')
                                         ->suffixAction(
                                             Forms\Components\Actions\Action::make('copyFromTitle')
                                                 ->icon('heroicon-o-document-duplicate')
