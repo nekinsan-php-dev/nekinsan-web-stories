@@ -138,22 +138,21 @@ class PostResource extends Resource
                                             $set('meta_title_length', strlen($state ?? ''));
                                         }),
 
-                                    Forms\Components\Placeholder::make('meta_title_length')
-                                        ->label('Meta Title Length')
-                                        ->content(function (Forms\Get $get) {
-                                            $length = strlen($get('meta_title') ?? '');
-                                            $color = $length > 60 ? 'danger' : ($length > 50 ? 'warning' : 'success');
-                                            return new \Illuminate\Support\HtmlString(
-                                                "<span class='text-{$color}-600 font-medium'>{$length} characters</span>"
-                                            );
-                                        }),
+                                   Forms\Components\Placeholder::make('meta_title_length')
+    ->label('Meta Title Length')
+    ->content(function (Forms\Get $get) {
+        $length = strlen($get('meta_title') ?? '');
+        return new \Illuminate\Support\HtmlString(
+            "<span class='text-gray-700 font-medium'>{$length} characters</span>"
+        );
+    }),
 
                                     Forms\Components\Textarea::make('meta_description')
                                         ->label('Meta Description')
-                                        ->maxLength(160)
+                                        ->maxLength(250)
                                         ->rows(3)
                                         ->placeholder('Write a compelling description that summarizes your story...')
-                                        ->helperText('Recommended: 150-160 characters. This appears below the title in search results.')
+                                        ->helperText('Recommended: 150-250 characters. This appears below the title in search results.')
                                         ->live()
                                         ->afterStateUpdated(function ($state, Forms\Set $set) {
                                             $set('meta_description_length', strlen($state ?? ''));
@@ -163,7 +162,7 @@ class PostResource extends Resource
                                         ->label('Meta Description Length')
                                         ->content(function (Forms\Get $get) {
                                             $length = strlen($get('meta_description') ?? '');
-                                            $color = $length > 160 ? 'danger' : ($length > 150 ? 'warning' : 'success');
+                                            $color = $length > 249 ? 'danger' : ($length > 150 ? 'warning' : 'success');
                                             return new \Illuminate\Support\HtmlString(
                                                 "<span class='text-{$color}-600 font-medium'>{$length} characters</span>"
                                             );
