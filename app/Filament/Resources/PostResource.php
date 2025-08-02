@@ -369,11 +369,15 @@ class PostResource extends Resource
                                                         ->columnSpanFull(),
                                                 ])
                                         ])
-                                        ->itemLabel(fn (array $state): ?string =>
-                                        !empty($state['title'])
-                                            ? $state['title']
-                                            : 'Slide #' . (array_search($state, request()->input('data.slides', [])) + 1)
-                                        )
+                                       ->itemLabel(function (array $state): ?string {
+    if (!empty($state['title'])) {
+        return $state['title'];
+    }
+    
+    static $counter = 0;
+    $counter++;
+    return 'Slide #' . $counter;
+})
                                         ->addActionLabel('Add New Slide')
                                         ->reorderableWithButtons()
                                         ->collapsible()
